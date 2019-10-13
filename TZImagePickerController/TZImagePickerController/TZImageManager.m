@@ -40,6 +40,13 @@ static dispatch_once_t onceToken;
     manager = nil;
 }
 
+- (NSMutableDictionary *)imagePaletteDict {
+    if (!_imagePaletteDict) {
+        _imagePaletteDict = [NSMutableDictionary dictionary];
+    }
+    return _imagePaletteDict;
+}
+
 - (void)setPhotoWidth:(CGFloat)photoWidth {
     _photoWidth = photoWidth;
     TZScreenWidth = photoWidth / 2;
@@ -467,17 +474,10 @@ static dispatch_once_t onceToken;
 #pragma mark - Save photo
 
 - (void)savePhotoWithImage:(UIImage *)image completion:(void (^)(PHAsset *asset, NSError *error))completion {
-    [self savePhotoWithImage:image location:nil completion:completion];
-}
-
-- (void)savePhotoWithImage:(UIImage *)image location:(CLLocation *)location completion:(void (^)(PHAsset *asset, NSError *error))completion {
     __block NSString *localIdentifier = nil;
     [[PHPhotoLibrary sharedPhotoLibrary] performChanges:^{
         PHAssetChangeRequest *request = [PHAssetChangeRequest creationRequestForAssetFromImage:image];
         localIdentifier = request.placeholderForCreatedAsset.localIdentifier;
-        if (location) {
-            request.location = location;
-        }
         request.creationDate = [NSDate date];
     } completionHandler:^(BOOL success, NSError *error) {
         dispatch_async(dispatch_get_main_queue(), ^{
@@ -497,17 +497,10 @@ static dispatch_once_t onceToken;
 #pragma mark - Save video
 
 - (void)saveVideoWithUrl:(NSURL *)url completion:(void (^)(PHAsset *asset, NSError *error))completion {
-    [self saveVideoWithUrl:url location:nil completion:completion];
-}
-
-- (void)saveVideoWithUrl:(NSURL *)url location:(CLLocation *)location completion:(void (^)(PHAsset *asset, NSError *error))completion {
     __block NSString *localIdentifier = nil;
     [[PHPhotoLibrary sharedPhotoLibrary] performChanges:^{
         PHAssetChangeRequest *request = [PHAssetChangeRequest creationRequestForAssetFromVideoAtFileURL:url];
         localIdentifier = request.placeholderForCreatedAsset.localIdentifier;
-        if (location) {
-            request.location = location;
-        }
         request.creationDate = [NSDate date];
     } completionHandler:^(BOOL success, NSError *error) {
         dispatch_async(dispatch_get_main_queue(), ^{

@@ -12,6 +12,14 @@
 #import "TZImageManager.h"
 #import "TZImagePickerController.h"
 #import "TZProgressView.h"
+#import "LLCollectionPaletteView.h"
+#import "UIView+Layer.h"
+#import "UIView+Animation.h"
+#import "NSArray+Common.h"
+#import "UIColor+Common.h"
+#import "UIColor+Name.h"
+#import <UIImageColors/UIImageColors-Swift.h>
+#import "UIColor+LLFactory.h"
 
 @interface TZAssetCell ()
 @property (weak, nonatomic) UIImageView *imageView;       // The photo / 照片
@@ -19,19 +27,45 @@
 @property (weak, nonatomic) UILabel *indexLabel;
 @property (weak, nonatomic) UIView *bottomView;
 @property (weak, nonatomic) UILabel *timeLength;
+@property (nonatomic, weak) LLCollectionPaletteView *paletteView;
+
 @property (strong, nonatomic) UITapGestureRecognizer *tapGesture;
 
 @property (nonatomic, weak) UIImageView *videoImgView;
 @property (nonatomic, strong) TZProgressView *progressView;
 @property (nonatomic, assign) int32_t bigImageRequestID;
+
+@property (strong, nonatomic) CAGradientLayer *gradientLayer;
+
 @end
 
 @implementation TZAssetCell
 
 - (instancetype)initWithFrame:(CGRect)frame {
     self = [super initWithFrame:frame];
+    [self addShadowLayerWithCornerRadius:5];
     [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(reload:) name:@"TZ_PHOTO_PICKER_RELOAD_NOTIFICATION" object:nil];
     return self;
+}
+
+//创建渐变视图
+- (void)createGradientView {
+    //设置蒙版，用来改变layer的透明度
+    [_imageView.layer addSublayer:self.gradientLayer];
+}
+
+- (CAGradientLayer *)gradientLayer {
+	if (!_gradientLayer) {
+		_gradientLayer = [CAGradientLayer layer];
+		_gradientLayer.frame = self.bounds;
+		//设置渐变颜色数组,可以加透明度的渐变
+		_gradientLayer.colors = @[(__bridge id)[UIColor colorWithWhite:1 alpha:0].CGColor,(__bridge id)[UIColor colorWithWhite:1 alpha:0.4].CGColor];
+		//设置渐变区域的起始和终止位置（范围为0-1）
+		_gradientLayer.startPoint = CGPointMake(0, 0);
+		_gradientLayer.endPoint = CGPointMake(0, 1);
+		_gradientLayer.locations = @[@(0.5),@(1.0)]; //设置渐变位置数组
+	}
+	return _gradientLayer;
 }
 
 - (void)setModel:(TZAssetModel *)model {
@@ -41,8 +75,16 @@
         // Set the cell's thumbnail image if it's still showing the same asset.
         if ([self.representedAssetIdentifier isEqualToString:model.asset.localIdentifier]) {
             self.imageView.image = photo;
+            if (!isDegraded) {
+                // -------- lv0 add --------
+                NSArray *colors = [TZImageManager manager].imagePaletteDict[self.representedAssetIdentifier];
+                if (!colors) {
+                    self.assetCellDidSetImageBlock ? self.assetCellDidSetImageBlock(self, photo, self.representedAssetIdentifier) : nil;
+                } else
+                    [self renderPaletteView:colors animated:NO];
+                // -------- lv0 add --------
+            }
         } else {
-            // NSLog(@"this cell is showing other asset");
             [[PHImageManager defaultManager] cancelImageRequest:self.imageRequestID];
         }
         if (!isDegraded) {
@@ -52,7 +94,6 @@
     } progressHandler:nil networkAccessAllowed:NO];
     if (imageRequestID && self.imageRequestID && imageRequestID != self.imageRequestID) {
         [[PHImageManager defaultManager] cancelImageRequest:self.imageRequestID];
-        // NSLog(@"cancelImageRequest %d",self.imageRequestID);
     }
     self.imageRequestID = imageRequestID;
     self.selectPhotoButton.selected = model.isSelected;
@@ -77,6 +118,40 @@
     
     if (self.assetCellDidSetModelBlock) {
         self.assetCellDidSetModelBlock(self, _imageView, _selectImageView, _indexLabel, _bottomView, _timeLength, _videoImgView);
+    }
+}
+
+- (void)renderPaletteView {
+    dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+        dispatch_async(dispatch_get_main_queue(), ^{
+            __block NSArray *colors = [TZImageManager manager].imagePaletteDict[self.representedAssetIdentifier];
+            if (!colors) {
+                UIImage *photo = self.imageView.image;
+				[photo getColorsWithQuality:250 :^(UIImageColors * _Nullable imageColors) {
+					UIColor *contentColor = [UIColor ll_lightButtonColor];
+					if ([UIColor isLightColor:imageColors.background]) {
+						contentColor = RANDOM_COLOR;
+					}
+					colors = @[imageColors.background, imageColors.primary, imageColors.secondary, imageColors.button, imageColors.detail];
+					[[TZImageManager manager].imagePaletteDict setValue:colors forKey:self.representedAssetIdentifier];
+					[self renderPaletteView:colors animated:YES];
+				}];
+            }
+        });
+    });
+}
+
+- (void)renderPaletteView:(NSArray *)colors animated:(BOOL)animated {
+    if (colors) {
+        [self.paletteView refreshWithColors:colors];
+        [self.paletteView addShadowLayerWithCornerRadius:2 shadowOffset:CGSizeMake(0, 5) shadowOpacity:0.1 shadowRadius:10];
+        self.paletteView.hidden = NO;
+        if (animated) {
+            [self.paletteView addTransform3DMakeScale];
+            [self.paletteView addBlinkAnimationWithDuration:1.2];
+        }
+    } else {
+        self.paletteView.hidden = YES;
     }
 }
 
@@ -114,12 +189,6 @@
         self.videoImgView.hidden = NO;
         _timeLength.tz_left = self.videoImgView.tz_right;
         _timeLength.textAlignment = NSTextAlignmentRight;
-    } else if (type == TZAssetCellTypePhotoGif && self.allowPickingGif) {
-        self.bottomView.hidden = NO;
-        self.timeLength.text = @"GIF";
-        self.videoImgView.hidden = YES;
-        _timeLength.tz_left = 5;
-        _timeLength.textAlignment = NSTextAlignmentLeft;
     }
 }
 
@@ -229,7 +298,7 @@
         imageView.clipsToBounds = YES;
         [self.contentView addSubview:imageView];
         _imageView = imageView;
-        
+        [self createGradientView];
         _tapGesture = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(didTapImageView)];
         [_imageView addGestureRecognizer:_tapGesture];
     }
@@ -289,6 +358,16 @@
     return _timeLength;
 }
 
+- (LLCollectionPaletteView *)paletteView {
+    if (!_paletteView) {
+        LLCollectionPaletteView *paletteView = [[LLCollectionPaletteView alloc] initWithFrame:[self paletteViewFrame]];
+        [self.contentView addSubview:paletteView];
+        paletteView.hidden = YES;
+        _paletteView = paletteView;
+    }
+    return _paletteView;
+}
+
 - (UILabel *)indexLabel {
     if (_indexLabel == nil) {
         UILabel *indexLabel = [[UILabel alloc] init];
@@ -308,6 +387,12 @@
         [self addSubview:_progressView];
     }
     return _progressView;
+}
+
+- (CGRect)paletteViewFrame {
+    CGFloat height = self.tz_width / 6;
+    CGFloat padding = height / 2;
+    return CGRectMake(padding, self.tz_height - height - padding, self.tz_width - padding * 2, height);
 }
 
 - (void)layoutSubviews {
@@ -334,9 +419,16 @@
     _bottomView.frame = CGRectMake(0, self.tz_height - 17, self.tz_width, 17);
     _videoImgView.frame = CGRectMake(8, 0, 17, 17);
     _timeLength.frame = CGRectMake(self.videoImgView.tz_right, 0, self.tz_width - self.videoImgView.tz_right - 5, 17);
-    
+	
+	//---------- lv0 add --------------
+    _paletteView.frame = [self paletteViewFrame];
+	_gradientLayer.frame = self.bounds;
+	//---------- lv0 add --------------
+	
     self.type = (NSInteger)self.model.type;
     self.showSelectBtn = self.showSelectBtn;
+    
+    [self.contentView bringSubviewToFront:_paletteView];
     
     [self.contentView bringSubviewToFront:_bottomView];
     [self.contentView bringSubviewToFront:_cannotSelectLayerButton];
@@ -365,13 +457,14 @@
 - (instancetype)initWithStyle:(UITableViewCellStyle)style reuseIdentifier:(NSString *)reuseIdentifier {
     self = [super initWithStyle:style reuseIdentifier:reuseIdentifier];
     self.accessoryType = UITableViewCellAccessoryDisclosureIndicator;
+    self.backgroundColor = [UIColor ll_backgroundColor];
     return self;
 }
 
 - (void)setModel:(TZAlbumModel *)model {
     _model = model;
     
-    NSMutableAttributedString *nameString = [[NSMutableAttributedString alloc] initWithString:model.name attributes:@{NSFontAttributeName:[UIFont systemFontOfSize:16],NSForegroundColorAttributeName:[UIColor blackColor]}];
+    NSMutableAttributedString *nameString = [[NSMutableAttributedString alloc] initWithString:model.name attributes:@{NSFontAttributeName:[UIFont systemFontOfSize:16],NSForegroundColorAttributeName:[UIColor ll_navBarFontColor]}];
     NSAttributedString *countString = [[NSAttributedString alloc] initWithString:[NSString stringWithFormat:@"  (%zd)",model.count] attributes:@{NSFontAttributeName:[UIFont systemFontOfSize:16],NSForegroundColorAttributeName:[UIColor lightGrayColor]}];
     [nameString appendAttributedString:countString];
     self.titleLabel.attributedText = nameString;
@@ -423,7 +516,7 @@
     if (_titleLabel == nil) {
         UILabel *titleLabel = [[UILabel alloc] init];
         titleLabel.font = [UIFont boldSystemFontOfSize:17];
-        titleLabel.textColor = [UIColor blackColor];
+        titleLabel.textColor = [UIColor ll_navBarFontColor];
         titleLabel.textAlignment = NSTextAlignmentLeft;
         [self.contentView addSubview:titleLabel];
         _titleLabel = titleLabel;
@@ -437,7 +530,7 @@
         selectedCountButton.layer.cornerRadius = 12;
         selectedCountButton.clipsToBounds = YES;
         selectedCountButton.backgroundColor = [UIColor redColor];
-        [selectedCountButton setTitleColor:[UIColor whiteColor] forState:UIControlStateNormal];
+        [selectedCountButton setTitleColor:[UIColor ll_navBarFontColor] forState:UIControlStateNormal];
         selectedCountButton.titleLabel.font = [UIFont systemFontOfSize:15];
         [self.contentView addSubview:selectedCountButton];
         _selectedCountButton = selectedCountButton;
@@ -446,7 +539,6 @@
 }
 
 @end
-
 
 
 @implementation TZAssetCameraCell

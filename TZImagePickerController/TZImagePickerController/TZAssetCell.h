@@ -38,6 +38,12 @@ typedef enum : NSUInteger {
 
 @property (nonatomic, copy) void (^assetCellDidSetModelBlock)(TZAssetCell *cell, UIImageView *imageView, UIImageView *selectImageView, UILabel *indexLabel, UIView *bottomView, UILabel *timeLength, UIImageView *videoImgView);
 @property (nonatomic, copy) void (^assetCellDidLayoutSubviewsBlock)(TZAssetCell *cell, UIImageView *imageView, UIImageView *selectImageView, UILabel *indexLabel, UIView *bottomView, UILabel *timeLength, UIImageView *videoImgView);
+
+@property (nonatomic, copy) void (^assetCellDidSetImageBlock)(TZAssetCell *cell, UIImage *photo, NSString *representedAssetIdentifier);
+
+- (void)renderPaletteView;
+- (void)renderPaletteView:(NSArray *)colors animated:(BOOL)animated;
+
 @end
 
 

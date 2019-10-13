@@ -21,6 +21,8 @@
 + (instancetype)manager NS_SWIFT_NAME(default());
 + (void)deallocManager;
 
+@property (strong, nonatomic) NSMutableDictionary *imagePaletteDict;
+
 @property (weak, nonatomic) id<TZImagePickerControllerDelegate> pickerDelegate;
 
 @property (nonatomic, assign) BOOL shouldFixOrientation;
@@ -77,11 +79,9 @@
 
 /// Save photo 保存照片
 - (void)savePhotoWithImage:(UIImage *)image completion:(void (^)(PHAsset *asset, NSError *error))completion;
-- (void)savePhotoWithImage:(UIImage *)image location:(CLLocation *)location completion:(void (^)(PHAsset *asset, NSError *error))completion;
 
 /// Save video 保存视频
 - (void)saveVideoWithUrl:(NSURL *)url completion:(void (^)(PHAsset *asset, NSError *error))completion;
-- (void)saveVideoWithUrl:(NSURL *)url location:(CLLocation *)location completion:(void (^)(PHAsset *asset, NSError *error))completion;
 
 /// Get video 获得视频
 - (void)getVideoWithAsset:(PHAsset *)asset completion:(void (^)(AVPlayerItem * playerItem, NSDictionary * info))completion;
