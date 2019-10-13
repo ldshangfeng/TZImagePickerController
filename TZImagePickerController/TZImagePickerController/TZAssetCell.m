@@ -372,6 +372,7 @@
     if (_indexLabel == nil) {
         UILabel *indexLabel = [[UILabel alloc] init];
         indexLabel.font = [UIFont systemFontOfSize:14];
+        indexLabel.adjustsFontSizeToFitWidth = YES;
         indexLabel.textColor = [UIColor whiteColor];
         indexLabel.textAlignment = NSTextAlignmentCenter;
         [self.contentView addSubview:indexLabel];
@@ -527,6 +528,7 @@
 - (UIButton *)selectedCountButton {
     if (_selectedCountButton == nil) {
         UIButton *selectedCountButton = [[UIButton alloc] init];
+        selectedCountButton.titleLabel.adjustsFontSizeToFitWidth = YES;
         selectedCountButton.layer.cornerRadius = 12;
         selectedCountButton.clipsToBounds = YES;
         selectedCountButton.backgroundColor = [UIColor redColor];

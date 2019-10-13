@@ -27,6 +27,8 @@
 
 @property (nonatomic, assign) BOOL shouldFixOrientation;
 
+@property (nonatomic, assign) BOOL isPreviewNetworkImage;
+
 /// Default is 600px / 默认600像素宽
 @property (nonatomic, assign) CGFloat photoPreviewMaxWidth;
 /// The pixel width of output image, Default is 828px / 导出图片的宽度，默认828像素宽
@@ -79,6 +81,8 @@
 
 /// Save photo 保存照片
 - (void)savePhotoWithImage:(UIImage *)image completion:(void (^)(PHAsset *asset, NSError *error))completion;
+//- (void)savePhotoWithImage:(UIImage *)image location:(CLLocation *)location completion:(void (^)(PHAsset *asset, NSError *error))completion;
+//- (void)savePhotoWithImage:(UIImage *)image meta:(NSDictionary *)meta location:(CLLocation *)location completion:(void (^)(PHAsset *asset, NSError *error))completion;
 
 /// Save video 保存视频
 - (void)saveVideoWithUrl:(NSURL *)url completion:(void (^)(PHAsset *asset, NSError *error))completion;
